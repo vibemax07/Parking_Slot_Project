@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+dataset/
+frames/
+Testing_images/
+result.jpg
+confusion_matrix.png
+Thumbs.db
+.DS_Store
