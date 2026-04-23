@@ -7,12 +7,12 @@ from tensorflow.keras.models import load_model
 # -----------------------------
 # LOAD MODEL
 # -----------------------------
-model = load_model("parking_model.h5")
+model = load_model(r"C:\Parking Slot\Parking_Slot_Project\parking_model.h5")
 
 # -----------------------------
 # LOAD IMAGE
 # -----------------------------
-img = cv2.imread(r"C:\Users\DELL\OneDrive\Documents\java final prep\Parking_Slot_Project\frames\frame_054.jpg")
+img = cv2.imread(r"C:\Parking Slot\Parking_Slot_Project\Reference.jpg")
 
 if img is None:
     print("❌ Error loading image")
@@ -21,7 +21,7 @@ if img is None:
 # -----------------------------
 # LOAD SLOT COORDINATES
 # -----------------------------
-with open("slots.pkl", "rb") as f:
+with open(r"C:\Parking Slot\Parking_Slot_Project\slots.pkl", "rb") as f:
     slots = pickle.load(f)
 
 # -----------------------------

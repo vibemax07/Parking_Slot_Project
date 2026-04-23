@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Parking System</title>
+    <meta name="description" content="AI-powered smart parking system with real-time slot detection and animated vehicle navigation.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        /* ═══════════════════════════════════════════════════════════════
+           RESET & BASE
+           ═══════════════════════════════════════════════════════════════ */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-primary:   #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary:  #21262d;
+            --border:       #30363d;
+            --text:         #e6edf3;
+            --text-muted:   #8b949e;
+            --accent-blue:  #58a6ff;
+            --accent-cyan:  #39d2c0;
+            --accent-green: #3fb950;
+            --accent-yellow:#d29922;
+            --accent-red:   #f85149;
+            --accent-purple:#bc8cff;
+            --glass-bg:     rgba(22, 27, 34, 0.65);
+            --glass-border: rgba(240, 246, 252, 0.08);
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* animated background mesh */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background:
+                radial-gradient(ellipse 800px 600px at 20% 20%, rgba(88,166,255,0.08), transparent),
+                radial-gradient(ellipse 600px 500px at 80% 70%, rgba(57,210,192,0.06), transparent),
+                radial-gradient(ellipse 500px 400px at 50% 50%, rgba(188,140,255,0.04), transparent);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           LAYOUT
+           ═══════════════════════════════════════════════════════════════ */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           HERO
+           ═══════════════════════════════════════════════════════════════ */
+        .hero {
+            text-align: center;
+            padding: 56px 0 32px;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(57,210,192,0.1);
+            border: 1px solid rgba(57,210,192,0.25);
+            border-radius: 100px;
+            padding: 6px 18px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--accent-cyan);
+            margin-bottom: 20px;
+            letter-spacing: 0.5px;
+        }
+        .hero-badge .dot {
+            width: 7px; height: 7px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50%      { opacity: 0.4; transform: scale(0.7); }
+        }
+
+        .hero h1 {
+            font-size: clamp(32px, 5vw, 52px);
+            font-weight: 800;
+            letter-spacing: -1px;
+            background: linear-gradient(135deg, #e6edf3 0%, var(--accent-cyan) 50%, var(--accent-blue) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.15;
+        }
+
+        .hero p {
+            color: var(--text-muted);
+            font-size: 16px;
+            margin-top: 12px;
+            max-width: 540px;
+            margin-inline: auto;
+            line-height: 1.6;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           STATS ROW
+           ═══════════════════════════════════════════════════════════════ */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 20px 24px;
+            text-align: center;
+            transition: transform 0.2s, border-color 0.3s;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255,255,255,0.12);
+        }
+        .stat-card .label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: 800;
+            transition: color 0.3s;
+        }
+        .stat-card.total   .value { color: var(--accent-blue); }
+        .stat-card.empty   .value { color: var(--accent-green); }
+        .stat-card.occupied .value { color: var(--accent-red); }
+
+        /* ═══════════════════════════════════════════════════════════════
+           SECTION TITLES
+           ═══════════════════════════════════════════════════════════════ */
+        .section-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-title .icon { font-size: 22px; }
+
+        /* ═══════════════════════════════════════════════════════════════
+           VEHICLE CARDS
+           ═══════════════════════════════════════════════════════════════ */
+        .vehicles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px;
+            margin-bottom: 48px;
+        }
+
+        .vehicle-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 28px 20px 22px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .vehicle-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(57,210,192,0.06), transparent 60%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .vehicle-card:hover {
+            transform: translateY(-6px);
+            border-color: var(--accent-cyan);
+            box-shadow: 0 12px 40px rgba(57,210,192,0.12), 0 0 0 1px rgba(57,210,192,0.15);
+        }
+        .vehicle-card:hover::before { opacity: 1; }
+
+        .vehicle-card.selected {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 20px rgba(57,210,192,0.2);
+        }
+
+        .vehicle-card .img-wrap {
+            width: 120px;
+            height: 100px;
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 1;
+        }
+        .vehicle-card .img-wrap img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));
+            transition: transform 0.3s;
+        }
+        .vehicle-card:hover .img-wrap img {
+            transform: scale(1.1);
+        }
+
+        .vehicle-card .name {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 4px;
+            position: relative;
+            z-index: 1;
+        }
+        .vehicle-card .desc {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+            position: relative;
+            z-index: 1;
+        }
+        .vehicle-card .btn-park {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 22px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            z-index: 1;
+        }
+        .vehicle-card .btn-park:hover {
+            box-shadow: 0 4px 16px rgba(57,210,192,0.35);
+            transform: translateY(-1px);
+        }
+        .vehicle-card .btn-park:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           REFERENCE IMAGE SECTION
+           ═══════════════════════════════════════════════════════════════ */
+        .ref-section {
+            margin-bottom: 48px;
+        }
+        .ref-image-wrap {
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            background: var(--bg-secondary);
+            position: relative;
+        }
+        .ref-image-wrap img {
+            width: 100%;
+            display: block;
+            cursor: crosshair;
+        }
+        .ref-click-hint {
+            position: absolute;
+            bottom: 12px;
+            right: 14px;
+            background: rgba(13,17,23,0.82);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            padding: 6px 14px;
+            font-size: 12px;
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           RESULTS / ANIMATION SECTION
+           ═══════════════════════════════════════════════════════════════ */
+        .results-section {
+            margin-bottom: 64px;
+            display: none;
+        }
+        .results-section.visible { display: block; animation: fadeSlideUp 0.5s ease; }
+
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .animation-panel {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 20px;
+        }
+        @media (max-width: 900px) {
+            .animation-panel { grid-template-columns: 1fr; }
+        }
+
+        .anim-viewer {
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            background: #000;
+            position: relative;
+        }
+        .anim-viewer img {
+            width: 100%;
+            display: block;
+        }
+
+        /* progress bar on the viewer */
+        .anim-progress {
+            position: absolute;
+            bottom: 0; left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-cyan), var(--accent-green));
+            transition: width 0.15s linear;
+            border-radius: 0 2px 0 0;
+        }
+
+        .info-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 28px 24px;
+        }
+        .info-panel h3 {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--glass-border);
+            font-size: 14px;
+        }
+        .info-row:last-child { border-bottom: none; }
+        .info-row .key { color: var(--text-muted); }
+        .info-row .val { font-weight: 600; }
+        .info-row .val.slot   { color: var(--accent-yellow); }
+        .info-row .val.status { color: var(--accent-green); }
+
+        /* ── Assigned Slot highlight row ─────────────────────────────── */
+        .info-row.slot-highlight {
+            margin: 6px -12px;
+            padding: 14px 12px;
+            border-radius: 10px;
+            background: linear-gradient(
+                135deg,
+                rgba(0, 255, 209, 0.07) 0%,
+                rgba(0, 200, 170, 0.04) 100%
+            );
+            border-left: 3px solid rgba(0, 255, 209, 0.55);
+            border-bottom: 1px solid rgba(0, 255, 209, 0.12);
+            font-size: 15px;         /* slightly larger than sibling rows */
+            transition: background 0.3s;
+        }
+        .info-row.slot-highlight:hover {
+            background: linear-gradient(
+                135deg,
+                rgba(0, 255, 209, 0.11) 0%,
+                rgba(0, 200, 170, 0.07) 100%
+            );
+        }
+        .info-row.slot-highlight .key {
+            color: rgba(0, 255, 209, 0.75);
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+        .info-row.slot-highlight .key::before {
+            content: '';
+            display: inline-block;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #00FFD1;
+            box-shadow: 0 0 6px 2px rgba(0,255,209,0.5);
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+        .info-row.slot-highlight .val.slot {
+            font-size: 17px;
+            font-weight: 800;
+            color: #00FFD1;
+            text-shadow: 0 0 12px rgba(0,255,209,0.4);
+            letter-spacing: 0.5px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(63,185,80,0.12);
+            border: 1px solid rgba(63,185,80,0.3);
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent-green);
+            margin-top: 20px;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           PARKING HISTORY LOG
+           ═══════════════════════════════════════════════════════════════ */
+        .history-section {
+            margin-bottom: 48px;
+            display: none;
+        }
+        .history-section.visible { display: block; }
+
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .history-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 14px 20px;
+            animation: fadeSlideUp 0.3s ease;
+        }
+
+        .history-item .history-num {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 800;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .history-item .history-details {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .history-item .history-car {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .history-item .history-slot {
+            color: var(--accent-yellow);
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .history-item .history-time {
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        /* Exit-state styling for history entries */
+        .history-item.exited {
+            opacity: 0.72;
+            border-color: rgba(248,81,73,0.25);
+        }
+        .history-item.exited .history-num {
+            background: linear-gradient(135deg, #f85149, #b91c1c);
+        }
+        .exit-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(248,81,73,0.12);
+            border: 1px solid rgba(248,81,73,0.35);
+            border-radius: 6px;
+            padding: 3px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--accent-red);
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+        .exit-time {
+            color: var(--accent-red);
+            font-size: 11px;
+            opacity: 0.75;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           LOT FULL BANNER
+           ═══════════════════════════════════════════════════════════════ */
+        .lot-full-banner {
+            display: none;
+            background: linear-gradient(135deg, rgba(248,81,73,0.15), rgba(210,153,34,0.1));
+            border: 1px solid rgba(248,81,73,0.4);
+            border-radius: 16px;
+            padding: 28px 32px;
+            text-align: center;
+            margin-bottom: 48px;
+            animation: fadeSlideUp 0.5s ease;
+        }
+        .lot-full-banner.visible { display: block; }
+
+        .lot-full-banner .full-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+        .lot-full-banner h2 {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--accent-red);
+            margin-bottom: 8px;
+        }
+        .lot-full-banner p {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           RESET BUTTON
+           ═══════════════════════════════════════════════════════════════ */
+        .btn-reset {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, var(--accent-red), var(--accent-yellow));
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 12px 28px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            z-index: 1;
+        }
+        .btn-reset:hover {
+            box-shadow: 0 4px 16px rgba(248,81,73,0.35);
+            transform: translateY(-2px);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           LOADING OVERLAY
+           ═══════════════════════════════════════════════════════════════ */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(13,17,23,0.85);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .loading-overlay.active { display: flex; }
+
+        .loader-ring {
+            width: 56px; height: 56px;
+            border: 4px solid var(--border);
+            border-top-color: var(--accent-cyan);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .loading-overlay .msg {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--text-muted);
+            animation: pulse-text 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse-text {
+            0%, 100% { opacity: 1; }
+            50%      { opacity: 0.5; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════
+           FOOTER
+           ═══════════════════════════════════════════════════════════════ */
+        footer {
+            text-align: center;
+            padding: 28px 0 36px;
+            color: var(--text-muted);
+            font-size: 13px;
+            border-top: 1px solid var(--glass-border);
+        }
+        footer a {
+            color: var(--accent-cyan);
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loader-ring"></div>
+    <div class="msg" id="loadingMsg">Detecting parking slots…</div>
+</div>
+
+<div class="container">
+
+    <!-- ═══ HERO ═══ -->
+    <section class="hero">
+        <div class="hero-badge"><span class="dot"></span> AI-Powered Detection</div>
+        <h1>Smart Parking System</h1>
+        <p>Select your vehicle type below and watch it navigate to the best available parking slot in real time.</p>
+    </section>
+
+    <!-- ═══ STATS ═══ -->
+    <div class="stats-row" id="statsRow" style="opacity:0; transform:translateY(12px); transition:all 0.5s;">
+        <div class="stat-card total">
+            <div class="label">Total Slots</div>
+            <div class="value" id="statTotal">—</div>
+        </div>
+        <div class="stat-card empty">
+            <div class="label">Empty</div>
+            <div class="value" id="statEmpty">—</div>
+        </div>
+        <div class="stat-card occupied">
+            <div class="label">Occupied</div>
+            <div class="value" id="statOccupied">—</div>
+        </div>
+    </div>
+
+    <!-- ═══ LOT FULL BANNER ═══ -->
+    <div class="lot-full-banner" id="lotFullBanner">
+        <div class="full-icon">🚫</div>
+        <h2>Parking Lot is Full!</h2>
+        <p>All slots are occupied. Reset the lot to start parking again.</p>
+        <button class="btn-reset" onclick="resetLot()">🔄 Reset Parking Lot</button>
+    </div>
+
+    <!-- ═══ VEHICLE SELECTION ═══ -->
+    <div id="vehicleSelectionSection">
+        <div class="section-title"><span class="icon">🚗</span> Choose Your Vehicle</div>
+
+        <div class="vehicles-grid" id="vehiclesGrid">
+            <div class="vehicle-card" data-type="hatchback" id="card-hatchback">
+                <div class="img-wrap"><img src="/api/vehicle-image/hatchback" alt="Hatchback"></div>
+                <div class="name">Hatchback</div>
+                <div class="desc">Compact &amp; Nimble</div>
+                <button class="btn-park" id="btn-hatchback" onclick="parkVehicle('hatchback')">🅿️ Park Now</button>
+            </div>
+            <div class="vehicle-card" data-type="sedan" id="card-sedan">
+                <div class="img-wrap"><img src="/api/vehicle-image/sedan" alt="Sedan"></div>
+                <div class="name">Sedan</div>
+                <div class="desc">Classic Comfort</div>
+                <button class="btn-park" id="btn-sedan" onclick="parkVehicle('sedan')">🅿️ Park Now</button>
+            </div>
+            <div class="vehicle-card" data-type="suv" id="card-suv">
+                <div class="img-wrap"><img src="/api/vehicle-image/suv" alt="SUV"></div>
+                <div class="name">SUV</div>
+                <div class="desc">Bold &amp; Spacious</div>
+                <button class="btn-park" id="btn-suv" onclick="parkVehicle('suv')">🅿️ Park Now</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ REFERENCE IMAGE ═══ -->
+    <div class="ref-section" id="refSection">
+        <div class="section-title"><span class="icon">🗺️</span> Parking Lot — Live View</div>
+        <div class="ref-image-wrap">
+            <img id="refImage" src="" alt="Parking Lot Reference" onclick="handleLotClick(event)">
+            <div class="ref-click-hint" id="refClickHint" style="display:none">👆 Click a parked car to exit it</div>
+        </div>
+    </div>
+
+    <!-- ═══ PARKING HISTORY ═══ -->
+    <section class="history-section" id="historySection">
+        <div class="section-title"><span class="icon">📜</span> Parking History</div>
+        <div class="history-list" id="historyList"></div>
+    </section>
+
+    <!-- ═══ RESULTS / ANIMATION ═══ -->
+    <section class="results-section" id="resultsSection">
+        <div class="section-title"><span class="icon">🎬</span> Parking Animation</div>
+        <div class="animation-panel">
+            <div class="anim-viewer">
+                <img id="animFrame" src="" alt="Parking Animation">
+                <div class="anim-progress" id="animProgress" style="width:0%"></div>
+            </div>
+            <div class="info-panel">
+                <h3>📋 Parking Details</h3>
+                <div class="info-row"><span class="key">Vehicle</span><span class="val" id="infoVehicle">—</span></div>
+                <div class="info-row slot-highlight"><span class="key">Assigned Slot</span><span class="val slot" id="infoSlot">—</span></div>
+                <div class="info-row"><span class="key">Total Slots</span><span class="val" id="infoTotal">—</span></div>
+                <div class="info-row"><span class="key">Available</span><span class="val" style="color:var(--accent-green)" id="infoEmpty">—</span></div>
+                <div class="info-row"><span class="key">Occupied</span><span class="val" style="color:var(--accent-red)" id="infoOccupied">—</span></div>
+                <div class="status-badge" id="statusBadge" style="display:none">
+                    ✅ Successfully Parked
+                </div>
+            </div>
+        </div>
+    </section>
+
+</div>
+
+<footer>
+    Smart Parking System &mdash; Built with AI &amp; Computer Vision
+</footer>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   APP LOGIC
+   ═══════════════════════════════════════════════════════════════════════ */
+
+let currentAnimation = null;
+let parkingHistory = [];     // Array of { carType, slotNumber, time, exitTime?, slotIndex? }
+let isParking = false;       // Guard against double-clicks
+let isExiting = false;       // Guard for exit operations
+
+
+// ── Load reference image + stats on page open ────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+    showLoading('Loading parking lot data…');
+    try {
+        const res  = await fetch('/api/reference');
+        const data = await res.json();
+        document.getElementById('refImage').src = 'data:image/jpeg;base64,' + data.image;
+        updateStats(data.stats);
+        // reveal stats with animation
+        const row = document.getElementById('statsRow');
+        row.style.opacity = '1';
+        row.style.transform = 'translateY(0)';
+    } catch (e) {
+        console.error('Failed to load reference:', e);
+    }
+    hideLoading();
+});
+
+// ── Update stats display everywhere ─────────────────────────────────
+function updateStats(stats) {
+    document.getElementById('statTotal').textContent    = stats.total;
+    document.getElementById('statEmpty').textContent    = stats.empty;
+    document.getElementById('statOccupied').textContent = stats.occupied;
+
+    // Animate stat change
+    ['statTotal', 'statEmpty', 'statOccupied'].forEach(id => {
+        const el = document.getElementById(id);
+        el.style.transform = 'scale(1.2)';
+        setTimeout(() => el.style.transform = 'scale(1)', 300);
+    });
+
+    // Check if lot is full
+    if (stats.empty === 0) {
+        showLotFull();
+    }
+}
+
+// ── Handle click on the parking lot image (click-to-exit) ────────────
+async function handleLotClick(event) {
+    if (isParking || isExiting) return;
+
+    const img    = document.getElementById('refImage');
+    const rect   = img.getBoundingClientRect();
+    const clickX = event.clientX - rect.left;
+    const clickY = event.clientY - rect.top;
+
+    // Map click from display pixels → the 960-wide image coords
+    const scaleX = 960 / rect.width;
+    const scaleY = 960 / rect.width;   // same scale (image is uniformly scaled)
+    const imgX = clickX * scaleX;
+    const imgY = clickY * scaleY;
+
+    try {
+        const res  = await fetch('/api/parked-cars');
+        const data = await res.json();
+
+        // Hit-test each parked car's bounding box
+        let hitCar = null;
+        for (const car of data.cars) {
+            if (imgX >= car.cx - car.hw && imgX <= car.cx + car.hw &&
+                imgY >= car.cy - car.hh && imgY <= car.cy + car.hh) {
+                hitCar = car;
+                break;
+            }
+        }
+
+        if (!hitCar) return;  // click missed all cars
+
+        // Confirm & exit
+        if (!confirm(`Exit ${hitCar.car_type.toUpperCase()} from the parking lot?`)) return;
+        await exitCar(hitCar.id, hitCar.car_type);
+
+    } catch (e) {
+        console.error('Click-to-exit error:', e);
+    }
+}
+
+// ── Show/hide the "click to exit" hint whenever cars are parked ───────
+async function updateClickHint() {
+    try {
+        const res  = await fetch('/api/parked-cars');
+        const data = await res.json();
+        const hint = document.getElementById('refClickHint');
+        hint.style.display = data.cars.length > 0 ? 'block' : 'none';
+    } catch (_) {}
+}
+
+// ── Animate a parked car exiting ─────────────────────────────────────
+async function exitCar(carId, carType) {
+    if (isExiting) return;
+    isExiting = true;
+
+    document.querySelectorAll('.btn-park').forEach(b => b.disabled = true);
+
+    showLoading(`Generating exit animation for ${carType.toUpperCase()}…`);
+
+    // Stop any running animation
+    if (currentAnimation) { clearInterval(currentAnimation); currentAnimation = null; }
+
+    try {
+        const res  = await fetch('/api/exit/' + carId);
+        const data = await res.json();
+
+        if (data.error) {
+            hideLoading();
+            alert(data.error);
+            isExiting = false;
+            document.querySelectorAll('.btn-park').forEach(b => b.disabled = false);
+            return;
+        }
+
+        hideLoading();
+
+        // Populate info panel to show exit context
+        document.getElementById('infoVehicle').textContent  = data.car_type.toUpperCase();
+        document.getElementById('infoSlot').textContent     = 'Slot ' + (data.slot_index + 1);
+        document.getElementById('infoTotal').textContent    = data.stats.total;
+        document.getElementById('infoEmpty').textContent    = data.stats.empty;
+        document.getElementById('infoOccupied').textContent = data.stats.occupied;
+        document.getElementById('statusBadge').style.display = 'none';
+
+        updateStats(data.stats);
+
+        // Show results section with exit animation
+        const section = document.getElementById('resultsSection');
+        section.classList.add('visible');
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        // Play exit frames; when done refresh reference image
+        playFrames(data.frames, () => {
+            // ── Mark matching history entry as exited ────────────────────
+            // Match by slot index (data.slot_index = 0-based index)
+            const exitedSlot = String(data.slot_index + 1);
+            // Walk backwards — find the most-recent entry for this slot that isn't already exited
+            for (let i = parkingHistory.length - 1; i >= 0; i--) {
+                const h = parkingHistory[i];
+                if (String(h.slotNumber) === exitedSlot && !h.exitTime) {
+                    h.exitTime   = new Date().toLocaleTimeString();
+                    h.exited     = true;
+                    break;
+                }
+            }
+            // Also try matching by car_type if slot match failed (fallback)
+            if (!parkingHistory.some(h => h.exited && !h._exitHandled)) {
+                for (let i = parkingHistory.length - 1; i >= 0; i--) {
+                    const h = parkingHistory[i];
+                    if (h.carType === data.car_type.toUpperCase() && !h.exitTime) {
+                        h.exitTime = new Date().toLocaleTimeString();
+                        h.exited   = true;
+                        break;
+                    }
+                }
+            }
+            updateHistory();
+
+            // Refresh reference image without the exited car
+            refreshReference();
+            updateClickHint();
+
+            document.getElementById('statusBadge').textContent = '✅ Slot is now free!';
+            document.getElementById('statusBadge').style.display = 'inline-flex';
+
+            document.querySelectorAll('.btn-park').forEach(b => b.disabled = false);
+
+            // If lot was full, hide the banner now
+            document.getElementById('lotFullBanner').classList.remove('visible');
+            document.getElementById('vehicleSelectionSection').style.display = '';
+
+            isExiting = false;
+        });
+
+    } catch (e) {
+        console.error('Exit request failed:', e);
+        alert('Something went wrong during exit. Check the console.');
+        hideLoading();
+        document.querySelectorAll('.btn-park').forEach(b => b.disabled = false);
+        isExiting = false;
+    }
+}
+
+// ── Park a vehicle ──────────────────────────────────────────────────
+async function parkVehicle(carType) {
+    if (isParking) return;   // prevent double-clicks
+    isParking = true;
+
+    // Disable all buttons during processing
+    document.querySelectorAll('.btn-park').forEach(b => b.disabled = true);
+
+    // Highlight the selected card
+    document.querySelectorAll('.vehicle-card').forEach(c => c.classList.remove('selected'));
+    document.getElementById('card-' + carType).classList.add('selected');
+
+    showLoading('Finding the best slot for ' + carType.toUpperCase() + '…');
+
+    // Stop any running animation
+    if (currentAnimation) { clearInterval(currentAnimation); currentAnimation = null; }
+
+    try {
+        const res  = await fetch('/api/park/' + carType);
+        const data = await res.json();
+
+        if (data.error) {
+            hideLoading();
+            if (data.lot_full) {
+                updateStats({ total: parseInt(document.getElementById('statTotal').textContent),
+                              empty: 0,
+                              occupied: parseInt(document.getElementById('statTotal').textContent) });
+                showLotFull();
+            } else {
+                alert(data.error);
+            }
+            document.querySelectorAll('.btn-park').forEach(b => b.disabled = false);
+            isParking = false;
+            return;
+        }
+
+        hideLoading();
+
+        // Populate info panel
+        document.getElementById('infoVehicle').textContent  = data.car_type.toUpperCase();
+        document.getElementById('infoSlot').textContent     = 'Slot ' + data.slot_number;
+        document.getElementById('infoTotal').textContent    = data.stats.total;
+        document.getElementById('infoEmpty').textContent    = data.stats.empty;
+        document.getElementById('infoOccupied').textContent = data.stats.occupied;
+        document.getElementById('statusBadge').style.display = 'none';
+
+        // Update top-level stats
+        updateStats(data.stats);
+
+        // Show results section
+        const section = document.getElementById('resultsSection');
+        section.classList.add('visible');
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        // Play animation — when done, refresh reference & re-enable buttons
+        playFrames(data.frames, () => {
+            // Add to parking history (include slot index for exit matching)
+            parkingHistory.push({
+                carType:    data.car_type.toUpperCase(),
+                slotNumber: data.slot_number,
+                slotIndex:  data.slot_index,   // 0-based, may be undefined on older responses
+                time:       new Date().toLocaleTimeString(),
+                exited:     false,
+                exitTime:   null,
+            });
+            updateHistory();
+
+            // Refresh the reference image to show all parked cars
+            refreshReference();
+            updateClickHint();
+
+            // Re-enable buttons for the next car
+            document.querySelectorAll('.btn-park').forEach(b => b.disabled = false);
+            document.querySelectorAll('.vehicle-card').forEach(c => c.classList.remove('selected'));
+            isParking = false;
+        });
+
+    } catch (e) {
+        console.error('Park request failed:', e);
+        alert('Something went wrong. Check the console for details.');
+        hideLoading();
+        document.querySelectorAll('.btn-park').forEach(b => b.disabled = false);
+        isParking = false;
+    }
+}
+
+// ── Refresh the reference image (to show parked cars) ───────────────
+async function refreshReference() {
+    try {
+        const res  = await fetch('/api/reference');
+        const data = await res.json();
+        document.getElementById('refImage').src = 'data:image/jpeg;base64,' + data.image;
+        updateClickHint();
+    } catch (e) {
+        console.error('Failed to refresh reference:', e);
+    }
+}
+
+// ── Parking history log ─────────────────────────────────────────────
+function updateHistory() {
+    const section = document.getElementById('historySection');
+    const list    = document.getElementById('historyList');
+    section.classList.add('visible');
+
+    list.innerHTML = '';
+
+    // Show newest first: iterate in reverse so prepend recreates correct order
+    [...parkingHistory].reverse().forEach((entry, revIdx) => {
+        const origIdx = parkingHistory.length - 1 - revIdx;  // original 0-based index
+        const isExited = !!entry.exited;
+
+        // Choose car emoji by type
+        const carEmoji = entry.carType === 'SUV' ? '🚙'
+                       : entry.carType === 'SEDAN' ? '🚗'
+                       : '🚘';   // hatchback
+
+        const exitBadgeHtml = isExited
+            ? `<span class="exit-badge">🚦 EXITED</span>
+               <span class="exit-time">🕐 ${entry.exitTime}</span>`
+            : `<span style="color:var(--accent-green);font-size:12px;font-weight:600;">🟢 Parked</span>`;
+
+        const item = document.createElement('div');
+        item.className = 'history-item' + (isExited ? ' exited' : '');
+        item.innerHTML = `
+            <div class="history-num">${origIdx + 1}</div>
+            <div class="history-details">
+                <span class="history-car">${carEmoji} ${entry.carType}</span>
+                <span class="history-slot">🅿️ Slot ${entry.slotNumber}</span>
+                <span class="history-time">🕑 Arrived: ${entry.time}</span>
+                ${exitBadgeHtml}
+            </div>
+        `;
+        list.appendChild(item);
+    });
+}
+
+// ── Show lot full state ─────────────────────────────────────────────
+function showLotFull() {
+    document.getElementById('lotFullBanner').classList.add('visible');
+    document.getElementById('vehicleSelectionSection').style.display = 'none';
+}
+
+// ── Reset the parking lot ───────────────────────────────────────────
+async function resetLot() {
+    showLoading('Resetting parking lot…');
+    try {
+        const res = await fetch('/api/reset');
+        const data = await res.json();
+
+        if (data.success) {
+            // Reset UI
+            parkingHistory = [];
+            document.getElementById('lotFullBanner').classList.remove('visible');
+            document.getElementById('vehicleSelectionSection').style.display = '';
+            document.getElementById('historySection').classList.remove('visible');
+            document.getElementById('historyList').innerHTML = '';
+            document.getElementById('resultsSection').classList.remove('visible');
+
+            // Update stats
+            updateStats(data.stats);
+
+            // Refresh reference image
+            await refreshReference();
+        }
+    } catch (e) {
+        console.error('Reset failed:', e);
+        alert('Failed to reset. Check the console.');
+    }
+    hideLoading();
+}
+
+// ── Frame-by-frame animation player ─────────────────────────────────
+function playFrames(frames, onComplete) {
+    const img      = document.getElementById('animFrame');
+    const progress = document.getElementById('animProgress');
+    const badge    = document.getElementById('statusBadge');
+    let   idx      = 0;
+
+    badge.style.display = 'none';
+
+    // Preload first frame immediately
+    img.src = 'data:image/jpeg;base64,' + frames[0];
+
+    currentAnimation = setInterval(() => {
+        if (idx >= frames.length) {
+            clearInterval(currentAnimation);
+            currentAnimation = null;
+            progress.style.width = '100%';
+            badge.style.display = 'inline-flex';
+            // Call the completion callback after a brief delay
+            if (onComplete) setTimeout(onComplete, 800);
+            return;
+        }
+        img.src = 'data:image/jpeg;base64,' + frames[idx];
+        progress.style.width = ((idx / (frames.length - 1)) * 100) + '%';
+        idx++;
+    }, 80);   // ~12.5 FPS for smooth playback
+}
+
+// ── Loading helpers ─────────────────────────────────────────────────
+function showLoading(msg) {
+    document.getElementById('loadingMsg').textContent = msg || 'Processing…';
+    document.getElementById('loadingOverlay').classList.add('active');
+}
+function hideLoading() {
+    document.getElementById('loadingOverlay').classList.remove('active');
+}
+</script>
+</body>
+</html>
