@@ -31,10 +31,9 @@ import math
 import sys
 import os
 
-# ── PATHS ─────────────────────────────────────────────────────────────────────
-MODEL_PATH     = r"C:\Parking Slot\Parking_Slot_Project\parking_model.h5"
-IMAGE_PATH     = r"C:\Parking Slot\Parking_Slot_Project\Reference.jpg"
-SLOTS_PKL_PATH = r"C:\Parking Slot\Parking_Slot_Project\slots.pkl"
+MODEL_PATH     = r"C:\Users\DELL\OneDrive\Documents\java final prep\Parking_Slot_Project\parking_model.h5"
+IMAGE_PATH     = r"C:\Users\DELL\OneDrive\Documents\java final prep\Parking_Slot_Project\Reference.jpg"
+SLOTS_PKL_PATH = r"C:\Users\DELL\OneDrive\Documents\java final prep\Parking_Slot_Project\slots.pkl"
 
 # Folder that holds your vehicle images (relative to this script)
 VEHICLES_DIR   = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vehicles")
