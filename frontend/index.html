@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SmartPark | Command Center</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "on-background": "#e3e0f4",
+          "tertiary-fixed": "#ffdad6",
+          "on-tertiary": "#680008",
+          "on-secondary": "#003910",
+          "inverse-primary": "#005ac3",
+          "surface-container": "#1e1e2c",
+          "on-primary-container": "#00285d",
+          "on-secondary-fixed": "#002106",
+          "on-tertiary-container": "#5c0006",
+          "outline-variant": "#414755",
+          "inverse-surface": "#e3e0f4",
+          "secondary-fixed-dim": "#00e559",
+          "tertiary-fixed-dim": "#ffb3ac",
+          "surface-container-lowest": "#0d0d1a",
+          "surface-tint": "#aec6ff",
+          "primary-container": "#4d8eff",
+          "primary": "#aec6ff",
+          "error-container": "#93000a",
+          "tertiary": "#ffb3ac",
+          "on-secondary-fixed-variant": "#00531b",
+          "surface-dim": "#12121f",
+          "on-primary": "#002e6a",
+          "error": "#ffb4ab",
+          "on-surface": "#e3e0f4",
+          "on-error": "#690005",
+          "on-primary-fixed-variant": "#004395",
+          "background": "#12121f",
+          "on-secondary-container": "#007127",
+          "surface-container-low": "#1a1a28",
+          "surface-container-high": "#292937",
+          "on-primary-fixed": "#001a42",
+          "on-error-container": "#ffdad6",
+          "primary-fixed": "#d8e2ff",
+          "secondary-fixed": "#6cff82",
+          "on-surface-variant": "#c1c6d7",
+          "secondary": "#ebffe6",
+          "surface-variant": "#343342",
+          "secondary-container": "#00fe64",
+          "tertiary-container": "#ff544e",
+          "inverse-on-surface": "#2f2f3d",
+          "primary-fixed-dim": "#aec6ff",
+          "on-tertiary-fixed": "#410003",
+          "outline": "#8b90a0",
+          "on-tertiary-fixed-variant": "#930010",
+          "surface-container-highest": "#343342",
+          "surface-bright": "#383847",
+          "surface": "#12121f"
+        },
+        borderRadius: {
+          DEFAULT: "0.125rem", lg: "0.25rem", xl: "0.5rem", full: "0.75rem"
+        },
+        fontFamily: {
+          headline: ["Space Grotesk"], body: ["Inter"], label: ["Inter"]
+        },
+        gridTemplateColumns: {
+          14: "repeat(14, minmax(0, 1fr))",
+          7:  "repeat(7,  minmax(0, 1fr))",
+        }
+      }
+    }
+  }
+</script>
+<style>
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+  .glass-panel {
+    background: rgba(30, 30, 44, 0.7);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+  }
+  .tech-surface {
+    background-color: #0d0d1a;
+    background-image: radial-gradient(rgba(77,142,255,0.05) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  /* Slot states */
+  .slot-empty    { background: rgba(0,254,100,0.07); border-color: rgba(0,254,100,0.35); }
+  .slot-occupied { background: rgba(255,84,78,0.1);  border-color: rgba(255,84,78,0.4); }
+  .slot-best {
+    background: rgba(77,142,255,0.15);
+    border-color: #4d8eff;
+    animation: pulse-blue 2s infinite;
+  }
+  @keyframes pulse-blue {
+    0%   { box-shadow: 0 0 0 0   rgba(77,142,255,0.7); }
+    70%  { box-shadow: 0 0 0 12px rgba(77,142,255,0);  }
+    100% { box-shadow: 0 0 0 0   rgba(77,142,255,0);   }
+  }
+  .success-pulse { animation: pulse-success 0.8s ease-out 3; }
+  @keyframes pulse-success {
+    0%   { background-color: rgba(0,254,100,0.15); }
+    50%  { background-color: rgba(0,254,100,0.4);  }
+    100% { background-color: rgba(0,254,100,0.15); }
+  }
+  .transition-view { transition: all 0.5s cubic-bezier(0.4,0,0.2,1); }
+  .vehicle-card {
+    background: rgba(26,26,46,0.4);
+    border: 1px solid rgba(174,198,255,0.1);
+    transition: all 0.3s ease;
+  }
+  .vehicle-card:hover {
+    background: rgba(77,142,255,0.1);
+    border-color: #aec6ff;
+    transform: translateY(-8px);
+    box-shadow: 0 10px 30px -10px rgba(77,142,255,0.3);
+  }
+  #animated-vehicle {
+    position: absolute;
+    transition: all 2.5s cubic-bezier(0.45,0,0.55,1);
+    z-index: 60;
+    pointer-events: none;
+    opacity: 0;
+    transform-origin: center;
+  }
+  /* Slot car SVG inside */
+  .parked-svg { display:none; }
+  .parked-svg.show { display:block; }
+</style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface font-body selection:bg-primary/30 overflow-x-hidden">
+
+<!-- ─────────────────── WELCOME VIEW ─────────────────── -->
+<div class="fixed inset-0 z-[100] bg-[#0d0d1a] flex flex-col items-center justify-center p-8 transition-view" id="welcome-view">
+  <div class="text-center mb-16">
+    <h1 class="text-6xl md:text-8xl font-black font-headline tracking-tighter text-[#4d8eff] mb-4">SmartPark</h1>
+    <p class="text-slate-500 uppercase tracking-[0.4em] text-xs font-label" id="welcome-subtitle">Select your vehicle to begin parking</p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-5xl">
+    <!-- Hatchback -->
+    <button class="vehicle-card group relative p-12 rounded-2xl flex flex-col items-center text-center"
+            id="card-hatchback" onclick="selectVehicle('hatchback','directions_car','#FFD700')">
+      <span class="text-[10px] font-label text-slate-500 uppercase tracking-widest mb-2">Category 01</span>
+      <h2 class="text-2xl font-headline font-bold text-white mb-12">Hatchback</h2>
+      <div class="text-[#FFD700] mb-12 transform group-hover:scale-110 transition-transform">
+        <span class="material-symbols-outlined text-[100px]" style="font-variation-settings:'FILL' 1;">directions_car</span>
+      </div>
+      <div class="w-12 h-[1px] bg-outline-variant/30 mb-4"></div>
+      <p class="text-slate-400 text-xs font-label uppercase tracking-widest">Compact Precision</p>
+    </button>
+    <!-- Sedan -->
+    <button class="vehicle-card group relative p-12 rounded-2xl flex flex-col items-center text-center"
+            id="card-sedan" onclick="selectVehicle('sedan','airport_shuttle','#FFFFFF')">
+      <span class="text-[10px] font-label text-slate-500 uppercase tracking-widest mb-2">Category 02</span>
+      <h2 class="text-2xl font-headline font-bold text-white mb-12">Sedan</h2>
+      <div class="text-white mb-12 transform group-hover:scale-110 transition-transform">
+        <span class="material-symbols-outlined text-[100px]" style="font-variation-settings:'FILL' 1;">airport_shuttle</span>
+      </div>
+      <div class="w-12 h-[1px] bg-outline-variant/30 mb-4"></div>
+      <p class="text-slate-400 text-xs font-label uppercase tracking-widest">Standard Utility</p>
+    </button>
+    <!-- SUV -->
+    <button class="vehicle-card group relative p-12 rounded-2xl flex flex-col items-center text-center"
+            id="card-suv" onclick="selectVehicle('suv','minor_crash','#4FC3F7')">
+      <span class="text-[10px] font-label text-slate-500 uppercase tracking-widest mb-2">Category 03</span>
+      <h2 class="text-2xl font-headline font-bold text-white mb-12">SUV</h2>
+      <div class="text-[#4FC3F7] mb-12 transform group-hover:scale-110 transition-transform">
+        <span class="material-symbols-outlined text-[100px]" style="font-variation-settings:'FILL' 1;">minor_crash</span>
+      </div>
+      <div class="w-12 h-[1px] bg-outline-variant/30 mb-4"></div>
+      <p class="text-slate-400 text-xs font-label uppercase tracking-widest">High Clearance</p>
+    </button>
+  </div>
+
+  <!-- Loading indicator (hidden by default) -->
+  <div class="mt-10 flex items-center gap-3 text-[#4d8eff] opacity-0 transition-opacity" id="welcome-loader">
+    <svg class="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"/>
+    </svg>
+    <span class="text-xs font-label uppercase tracking-widest" id="loader-msg">Scanning parking lot…</span>
+  </div>
+
+  <div class="mt-16 flex items-center gap-12 text-[10px] font-label text-slate-600 uppercase tracking-widest">
+    <div class="flex items-center gap-2"><span class="material-symbols-outlined text-sm">security</span> Secure Entry</div>
+    <div class="flex items-center gap-2"><span class="material-symbols-outlined text-sm">sensors</span> Real-time Telemetry</div>
+    <div class="flex items-center gap-2"><span class="material-symbols-outlined text-sm">gps_fixed</span> Precision Aligned</div>
+  </div>
+  <div class="mt-12 h-16 w-px bg-gradient-to-b from-primary/30 to-transparent"></div>
+</div>
+
+<!-- ─────────────────── MAIN DASHBOARD ─────────────────── -->
+<div class="opacity-0 pointer-events-none transition-view" id="dashboard-view">
+
+  <!-- Sidebar -->
+  <aside class="fixed left-0 top-0 h-full flex flex-col py-8 z-40 bg-[#0d0d1a] shadow-[10px_0_30px_rgba(0,0,0,0.5)] w-64 border-r border-outline-variant/10">
+    <div class="px-6 mb-12">
+      <div class="text-lg font-bold text-[#aec6ff] font-headline tracking-tighter uppercase">SmartPark</div>
+      <div class="mt-8 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center border border-outline-variant/20">
+          <span class="material-symbols-outlined text-[#aec6ff]">manage_accounts</span>
+        </div>
+        <div>
+          <h3 class="font-headline font-bold text-sm text-[#aec6ff]">Command Center</h3>
+          <p class="text-[10px] text-slate-500 font-label uppercase tracking-widest">Precision Logistics</p>
+        </div>
+      </div>
+    </div>
+    <nav class="flex-1 px-4 space-y-2">
+      <a class="flex items-center gap-3 px-4 py-3 bg-[#4d8eff]/10 text-[#aec6ff] border-r-4 border-[#4d8eff] translate-x-1 duration-150 transition-all" href="#">
+        <span class="material-symbols-outlined text-[20px]">grid_view</span>
+        <span class="font-label text-sm font-medium">Dashboard</span>
+      </a>
+      <a class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-200 hover:bg-[#1a1a2e] transition-all" href="#">
+        <span class="material-symbols-outlined text-[20px]">monitoring</span>
+        <span class="font-label text-sm font-medium">Analytics</span>
+      </a>
+      <a class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-200 hover:bg-[#1a1a2e] transition-all" href="#">
+        <span class="material-symbols-outlined text-[20px]">directions_car</span>
+        <span class="font-label text-sm font-medium">Fleet</span>
+      </a>
+      <a class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-200 hover:bg-[#1a1a2e] transition-all" href="#">
+        <span class="material-symbols-outlined text-[20px]">history</span>
+        <span class="font-label text-sm font-medium">History</span>
+      </a>
+    </nav>
+    <div class="px-4 mt-auto space-y-2 pt-8">
+      <!-- API Status -->
+      <div class="flex items-center gap-2 px-4 py-2">
+        <div class="w-2 h-2 rounded-full bg-red-500" id="api-dot"></div>
+        <span class="text-[10px] font-label text-slate-500 uppercase tracking-widest" id="api-label">API Offline</span>
+      </div>
+      <button class="w-full flex items-center justify-center gap-2 py-3 border border-outline-variant/20 text-slate-400 font-bold rounded-lg hover:bg-white/5 transition-all" onclick="location.reload()">
+        <span class="material-symbols-outlined text-sm">restart_alt</span>
+        <span class="text-xs uppercase tracking-widest">Change Vehicle</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Canvas -->
+  <main class="ml-64 min-h-screen flex flex-col">
+
+    <!-- Top Bar -->
+    <header class="fixed top-0 right-0 left-64 z-50 flex justify-between items-center px-8 h-16 bg-[#0d0d1a]/80 backdrop-blur-xl border-b border-outline-variant/10">
+      <div class="flex items-center gap-6">
+        <div class="text-xl font-black tracking-tighter text-[#aec6ff] font-headline">SmartPark</div>
+        <nav class="hidden md:flex gap-8">
+          <a class="text-[#aec6ff] font-bold border-b-2 border-[#4d8eff] pb-1 font-label text-[10px] uppercase tracking-widest" href="#">Main View</a>
+          <a class="text-slate-400 hover:text-[#4d8eff] transition-colors font-label text-[10px] uppercase tracking-widest" href="#">Map Config</a>
+          <a class="text-slate-400 hover:text-[#4d8eff] transition-colors font-label text-[10px] uppercase tracking-widest" href="#">Sensors</a>
+        </nav>
+      </div>
+      <div class="flex items-center gap-4">
+        <span class="text-xs font-label text-slate-500 uppercase tracking-wider" id="header-clock">00:00:00</span>
+        <button class="text-slate-400 hover:text-[#aec6ff] transition-all"><span class="material-symbols-outlined">notifications</span></button>
+        <button class="text-slate-400 hover:text-[#aec6ff] transition-all"><span class="material-symbols-outlined">settings</span></button>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <div class="mt-16 p-8 flex-1 flex flex-col gap-8">
+
+      <!-- Telemetry Row -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="glass-panel p-5 rounded-xl border-l-4 border-secondary-container flex flex-col justify-between">
+          <span class="text-[10px] font-label uppercase tracking-widest text-slate-400">Available</span>
+          <div class="flex items-baseline justify-between mt-2">
+            <span class="text-3xl font-headline font-bold text-secondary-container" id="stat-available">— <span class="text-lg text-slate-500">/ —</span></span>
+            <span class="material-symbols-outlined text-secondary-container/40">check_circle</span>
+          </div>
+        </div>
+        <div class="glass-panel p-5 rounded-xl border-l-4 border-tertiary-container flex flex-col justify-between">
+          <span class="text-[10px] font-label uppercase tracking-widest text-slate-400">Occupied</span>
+          <div class="flex items-baseline justify-between mt-2">
+            <span class="text-3xl font-headline font-bold text-tertiary-container" id="stat-occupied">— <span class="text-lg text-slate-500">/ —</span></span>
+            <span class="material-symbols-outlined text-tertiary-container/40">block</span>
+          </div>
+        </div>
+        <div class="glass-panel p-5 rounded-xl border-l-4 border-primary-container flex flex-col justify-between ring-1 ring-primary/30" id="target-match-card">
+          <span class="text-[10px] font-label uppercase tracking-widest text-slate-400">Target Match</span>
+          <div class="flex items-baseline justify-between mt-2">
+            <div class="flex items-center gap-3">
+              <span class="material-symbols-outlined text-primary text-3xl" id="selected-vehicle-icon" style="font-variation-settings:'FILL' 1;">directions_car</span>
+              <span class="text-2xl font-headline font-bold text-primary-container" id="stat-target-slot">#—</span>
+            </div>
+            <span class="material-symbols-outlined text-primary-container/40" style="font-variation-settings:'FILL' 1;">stars</span>
+          </div>
+        </div>
+        <div class="glass-panel p-5 rounded-xl border-l-4 border-outline-variant flex flex-col justify-between">
+          <span class="text-[10px] font-label uppercase tracking-widest text-slate-400">Zone Focus</span>
+          <div class="flex items-baseline justify-between mt-2">
+            <span class="text-2xl font-headline font-bold text-on-surface" id="stat-zone">Main Hub A</span>
+            <span class="material-symbols-outlined text-slate-400">location_on</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Parking Lot Map -->
+      <div class="flex-1 glass-panel rounded-2xl overflow-hidden relative border border-outline-variant/10 tech-surface shadow-2xl" style="min-height:680px;" id="map-container">
+
+        <!-- Animated vehicle layer -->
+        <div id="animated-vehicle"></div>
+
+        <!-- Road SVG underlay -->
+        <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 1200 750" preserveAspectRatio="none">
+          <!-- Horizontal road (between top row and bottom rows) -->
+          <rect fill="#1a1a2e" x="0" y="155" width="1070" height="130"/>
+          <!-- Vertical road (right side) -->
+          <rect fill="#1a1a2e" x="890" y="0" width="130" height="800"/>
+          <!-- Road centerlines -->
+          <line x1="0" y1="220" x2="890" y2="220" stroke="#4d8eff" stroke-width="2" stroke-dasharray="14,14" opacity="0.4"/>
+          <line x1="955" y1="0" x2="955" y2="800" stroke="#4d8eff" stroke-width="2" stroke-dasharray="14,14" opacity="0.4"/>
+          <!-- Entry arrow -->
+          <polygon points="20,215 40,205 40,225" fill="#4d8eff" opacity="0.5"/>
+          <text x="48" y="219" font-size="9" fill="#4d8eff" opacity="0.6" font-family="monospace" letter-spacing="2">ENTRY</text>
+        </svg>
+
+        <!--
+          GRID LAYOUT
+          ─────────────────────────────────────────────────────────
+          Top row    : Slots  0–13  (14 vertical slots)
+          Right col  : Slots 14–20  (7 horizontal slots)
+          Bottom A   : Slots 30–21  (10 vertical, reversed spatial)
+          Bottom B   : Slots 31–40  (10 vertical)
+          ─────────────────────────────────────────────────────────
+        -->
+        <div class="absolute inset-0 flex flex-col">
+
+          <!-- TOP ROW: 14 vertical slots -->
+          <div class="flex border-b border-primary/20" style="height:155px;">
+            <!-- 14 columns taking ~74% width, rest is right-col space -->
+            <div class="grid grid-cols-14 flex-1 border-r border-primary/20" id="row-top">
+              <!-- Populated by JS -->
+            </div>
+            <!-- Right col placeholder at top -->
+            <div style="width:130px;" class="border-l border-primary/20 bg-surface-container-low/10 flex items-center justify-center">
+              <span class="text-[9px] text-slate-700 uppercase tracking-widest rotate-90 whitespace-nowrap">Right Lane</span>
+            </div>
+          </div>
+
+          <!-- ROAD SPACE (entry lane) -->
+          <div style="height:130px;" class="flex items-center pl-4">
+            <!-- road is SVG background, nothing here -->
+          </div>
+
+          <!-- BOTTOM SECTION: left area (rows C & D) + right column -->
+          <div class="flex flex-1">
+
+            <!-- Bottom rows wrapper (left ~74%) -->
+            <div class="flex-1 flex flex-col border-r border-primary/20">
+              <!-- Row C: 10 slots -->
+              <div class="grid grid-cols-10 border-b border-primary/20" style="height:160px;" id="row-c">
+                <!-- Populated by JS -->
+              </div>
+              <!-- Row D: 10 slots -->
+              <div class="grid grid-cols-10 flex-1" style="min-height:160px;" id="row-d">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+
+            <!-- RIGHT COLUMN: 7 horizontal slots (stacked) -->
+            <div class="flex flex-col border-l border-primary/20" style="width:130px;" id="col-right">
+              <!-- Populated by JS -->
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Legend overlay -->
+        <div class="absolute top-3 left-3 flex items-center gap-4 z-10">
+          <div class="flex items-center gap-1.5 text-[9px] font-label text-slate-400">
+            <div class="w-3 h-3 rounded-sm border border-[#00fe64]/60 bg-[#00fe64]/10"></div> Free
+          </div>
+          <div class="flex items-center gap-1.5 text-[9px] font-label text-slate-400">
+            <div class="w-3 h-3 rounded-sm border border-[#ff544e]/60 bg-[#ff544e]/10"></div> Occupied
+          </div>
+          <div class="flex items-center gap-1.5 text-[9px] font-label text-slate-400">
+            <div class="w-3 h-3 rounded-sm border border-[#4d8eff] bg-[#4d8eff]/15"></div> Best Match
+          </div>
+        </div>
+
+        <!-- Map Controls -->
+        <div class="absolute bottom-4 left-4 right-4 flex justify-between items-end pointer-events-none">
+          <div class="glass-panel p-4 rounded-xl border border-outline-variant/20 pointer-events-auto">
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center gap-3">
+                <div class="w-2 h-2 rounded-full bg-secondary-container animate-pulse"></div>
+                <span class="text-[10px] font-label text-slate-300 uppercase tracking-widest">Guidance Active</span>
+              </div>
+              <div class="flex items-center gap-4 text-xs font-headline">
+                <div><span class="text-slate-500 uppercase text-[9px] block">Sensors</span><span class="text-on-surface">Active</span></div>
+                <div><span class="text-slate-500 uppercase text-[9px] block">Model</span><span class="text-on-surface">CNN v2</span></div>
+                <div><span class="text-slate-500 uppercase text-[9px] block">Sync</span><span class="text-on-surface" id="sync-time">--:--:--</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="flex gap-3 pointer-events-auto">
+            <button id="btn-park"
+              class="bg-primary-container text-on-primary py-3 px-6 rounded-lg font-bold flex items-center gap-2 shadow-lg shadow-primary/20 hover:opacity-90 transition-all disabled:opacity-30 disabled:pointer-events-none"
+              disabled>
+              <span class="material-symbols-outlined">local_parking</span>
+              <span class="text-xs uppercase tracking-widest font-label" id="btn-park-label">Park Vehicle</span>
+            </button>
+          </div>
+        </div>
+
+      </div><!-- /#map-container -->
+
+      <!-- Bottom Data Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Activity Stream -->
+        <div class="lg:col-span-2 glass-panel rounded-xl p-6 border border-outline-variant/10">
+          <div class="flex justify-between items-center mb-6">
+            <h3 class="font-headline font-bold text-[#aec6ff] text-sm uppercase tracking-wider">Live Activity Stream</h3>
+            <span class="text-[10px] font-label text-slate-500">REAL-TIME DATA</span>
+          </div>
+          <div class="space-y-3 max-h-[220px] overflow-y-auto pr-1" id="activity-stream">
+            <div class="flex items-center justify-between p-3 rounded-lg border-l-2 border-primary-container">
+              <div class="flex items-center gap-4">
+                <span class="material-symbols-outlined text-primary-container">near_me</span>
+                <div>
+                  <p class="text-sm font-medium">System initialised — <span class="text-primary font-headline">READY</span></p>
+                  <p class="text-[10px] text-slate-500 uppercase tracking-tighter">Awaiting vehicle entry</p>
+                </div>
+              </div>
+              <span class="font-headline text-xs text-slate-400">System</span>
+            </div>
+          </div>
+        </div>
+        <!-- Traffic Intensity -->
+        <div class="glass-panel rounded-xl p-6 border border-outline-variant/10">
+          <h3 class="font-headline font-bold text-[#aec6ff] text-sm uppercase tracking-wider mb-6">Traffic Intensity</h3>
+          <div class="space-y-6">
+            <div>
+              <div class="flex justify-between text-[10px] font-label uppercase text-slate-400 mb-2">
+                <span>Entrance Rate</span>
+                <span id="stat-entrance">0%</span>
+              </div>
+              <div class="h-1.5 w-full bg-surface-container-lowest rounded-full overflow-hidden">
+                <div class="h-full bg-secondary-container transition-all duration-1000" id="bar-entrance" style="width:0%"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-[10px] font-label uppercase text-slate-400 mb-2">
+                <span>Occupancy Level</span>
+                <span id="stat-turnover">0%</span>
+              </div>
+              <div class="h-1.5 w-full bg-surface-container-lowest rounded-full overflow-hidden">
+                <div class="h-full bg-primary-container transition-all duration-1000" id="bar-turnover" style="width:0%"></div>
+              </div>
+            </div>
+            <div class="mt-4 p-4 rounded-lg bg-surface-container-high/50 border border-outline-variant/10">
+              <p class="text-xs text-slate-400 italic font-body" id="zone-tip">"Scanning parking lot — select a vehicle to begin."</p>
+            </div>
+          </div>
+        </div>
+      </div><!-- /bottom grid -->
+
+    </div><!-- /content -->
+  </main>
+</div><!-- /#dashboard-view -->
+
+<!-- ─────────────────── SCRIPTS ─────────────────── -->
+<script>
+'use strict';
+
+/* ── Config ─────────────────────────────────────────── */
+const API_BASE = 'http://localhost:5000';
+
+/* Real layout mapping (matches slots.pkl coordinates):
+   Row-Top (A): IDs  0-13  → top horizontal strip
+   Col-Right (B): IDs 14-20 → right vertical strip
+   Row-C:        IDs 30-21  → middle horizontal (reversed)
+   Row-D:        IDs 31-40  → bottom horizontal
+*/
+const LAYOUT = {
+  rowTop:   [0,1,2,3,4,5,6,7,8,9,10,11,12,13],
+  colRight: [14,15,16,17,18,19,20],
+  rowC:     [30,29,28,27,26,25,24,23,22,21],
+  rowD:     [31,32,33,34,35,36,37,38,39,40],
+};
+
+/* ── State ──────────────────────────────────────────── */
+const S = {
+  vehicle:     null,
+  vehicleIcon: null,
+  vehicleColor:null,
+  slots:       [],          // backend slot array
+  slotMap:     {},          // id → slot obj
+  occupiedIds: new Set(),   // frontend-tracked
+  bestId:      null,
+  pairEndId:   null,
+  isAnimating: false,
+  isConnected: false,
+  total:       41,
+};
+
+/* ── Helpers ─────────────────────────────────────────── */
+function fmt(n) { return n !== null && n !== undefined ? String(n) : '—'; }
+
+function slotClass(id) {
+  if (id === S.bestId || id === S.pairEndId) return 'slot-best';
+  if (S.occupiedIds.has(id)) return 'slot-occupied';
+  const s = S.slotMap[id];
+  if (s && s.status === 'occupied') return 'slot-occupied';
+  return 'slot-empty';
+}
+
+function slotIcon(id) {
+  const cls = slotClass(id);
+  if (cls === 'slot-best') return `<span class="material-symbols-outlined text-[#4d8eff] text-sm" style="font-variation-settings:'FILL' 1;">stars</span>`;
+  if (cls === 'slot-occupied') return `<span class="material-symbols-outlined text-[#ff544e]/50 text-sm" style="font-variation-settings:'FILL' 1;">directions_car</span>`;
+  return `<span class="material-symbols-outlined text-[#00fe64]/40 text-xs">check_circle</span>`;
+}
+
+/* ── Clock ──────────────────────────────────────────── */
+function tickClock() {
+  const t = new Date().toLocaleTimeString('en-US', {hour12:false});
+  document.getElementById('header-clock').textContent = t;
+  document.getElementById('sync-time').textContent    = t;
+}
+setInterval(tickClock, 1000); tickClock();
+
+/* ── Activity Log ───────────────────────────────────── */
+function addActivity(text, colorClass, icon) {
+  const stream = document.getElementById('activity-stream');
+  const now    = new Date().toLocaleTimeString('en-US', {hour12:false});
+  const item   = document.createElement('div');
+  item.className = `flex items-center justify-between p-3 rounded-lg hover:bg-surface-container-high/40 transition-all border-l-2 border-${colorClass}`;
+  item.innerHTML = `
+    <div class="flex items-center gap-4">
+      <span class="material-symbols-outlined text-${colorClass}">${icon}</span>
+      <div>
+        <p class="text-sm font-medium">${text}</p>
+        <p class="text-[10px] text-slate-500 uppercase tracking-tighter">Verified Telemetry</p>
+      </div>
+    </div>
+    <span class="font-headline text-xs text-slate-400">${now}</span>`;
+  stream.prepend(item);
+  // cap at 20 entries
+  while (stream.children.length > 20) stream.removeChild(stream.lastChild);
+}
+
+/* ── Stats Update ───────────────────────────────────── */
+function updateStats(available, occupied, total, bestId) {
+  document.getElementById('stat-available').innerHTML =
+    `${available} <span class="text-lg text-slate-500">/ ${total}</span>`;
+  document.getElementById('stat-occupied').innerHTML =
+    `${occupied} <span class="text-lg text-slate-500">/ ${total}</span>`;
+  if (bestId !== null && bestId !== undefined) {
+    document.getElementById('stat-target-slot').textContent = `#${String(bestId+1).padStart(4,'0')}`;
+  }
+  const occPct  = total > 0 ? Math.round(occupied  / total * 100) : 0;
+  const enPct   = total > 0 ? Math.round(available / total * 100) : 0;
+  document.getElementById('stat-entrance').textContent = `${enPct}%`;
+  document.getElementById('bar-entrance').style.width  = `${enPct}%`;
+  document.getElementById('stat-turnover').textContent = `${occPct}%`;
+  document.getElementById('bar-turnover').style.width  = `${occPct}%`;
+
+  const tips = [
+    '"Row A is currently the fastest turnaround zone."',
+    '"Slots near the entry have the best ML confidence."',
+    '"Right-side slots offer wider clearance for SUVs."',
+    '"Current occupancy is within normal operating range."',
+  ];
+  document.getElementById('zone-tip').textContent = tips[Math.floor(Math.random()*tips.length)];
+}
+
+/* ── API ────────────────────────────────────────────── */
+async function checkApi() {
+  try {
+    const r = await fetch(`${API_BASE}/`, {signal: AbortSignal.timeout(3000)});
+    if (r.ok) {
+      S.isConnected = true;
+      document.getElementById('api-dot').classList.replace('bg-red-500','bg-green-400');
+      document.getElementById('api-label').textContent = 'API Online';
+      return true;
+    }
+  } catch(_) {}
+  S.isConnected = false;
+  document.getElementById('api-dot').classList.replace('bg-green-400','bg-red-500');
+  document.getElementById('api-label').textContent = 'API Offline';
+  return false;
+}
+
+async function fetchBestSlot(vehicleType) {
+  const res  = await fetch(`${API_BASE}/best-slot`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({car_type: vehicleType, occupied_ids: [...S.occupiedIds]}),
+  });
+  return res.json();
+}
+
+/* ── Demo slots (offline fallback) ─────────────────── */
+function buildDemoSlots(vehicleType) {
+  const demoOcc = new Set([2,5,8,14,16,22,25,31,36]);
+  S.slots = Array.from({length:41},(_,i)=>({
+    id:i, status: (demoOcc.has(i)||S.occupiedIds.has(i)) ? 'occupied':'empty',
+    x:0,y:0,w:110,h:230,area:25300,
+  }));
+  S.slotMap = {};
+  S.slots.forEach(s=>{ S.slotMap[s.id]=s; });
+  const minArea = {hatchback:1500,sedan:2500,suv:3500,truck:3500}[vehicleType]||1500;
+  const cand = S.slots.find(s=>s.status==='empty'&&s.area>=minArea);
+  S.bestId = cand ? cand.id : null;
+  return {
+    slots:S.slots, best_slot_id:S.bestId, best_pair_end:null,
+    available: S.slots.filter(s=>s.status==='empty').length,
+    occupied:  S.slots.filter(s=>s.status==='occupied').length,
+    total: 41,
+  };
+}
+
+/* ── Build Grid ─────────────────────────────────────── */
+function buildGrid() {
+  buildRow('row-top',   LAYOUT.rowTop,   'vertical');
+  buildRow('row-c',     LAYOUT.rowC,     'vertical');
+  buildRow('row-d',     LAYOUT.rowD,     'vertical');
+  buildColRight('col-right', LAYOUT.colRight);
+}
+
+function buildRow(containerId, ids, orientation) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  ids.forEach(id => {
+    const cls    = slotClass(id);
+    const isBest = id === S.bestId;
+    const div = document.createElement('div');
+    div.id  = `slot-${id}`;
+    div.className =
+      `border-r border-primary/20 flex flex-col items-center justify-between p-2 cursor-default
+       transition-all duration-300 ${cls}`;
+    div.innerHTML = `
+      <span class="text-[9px] font-bold text-primary/60 leading-none">${String(id+1).padStart(4,'0')}</span>
+      <div class="flex-1 flex items-center justify-center" id="slot-icon-${id}">${slotIcon(id)}</div>
+      <div class="parked-svg" id="parked-${id}"></div>`;
+    el.appendChild(div);
+  });
+}
+
+function buildColRight(containerId, ids) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  ids.forEach(id => {
+    const cls = slotClass(id);
+    const div = document.createElement('div');
+    div.id  = `slot-${id}`;
+    div.className =
+      `border-b border-primary/20 flex items-center justify-end gap-2 px-2 py-1
+       transition-all duration-300 flex-1 ${cls}`;
+    div.innerHTML = `
+      <div id="slot-icon-${id}">${slotIcon(id)}</div>
+      <span class="text-[9px] font-bold text-primary/60">${String(id+1).padStart(4,'0')}</span>`;
+    el.appendChild(div);
+  });
+}
+
+function refreshSlot(id) {
+  const el  = document.getElementById(`slot-${id}`);
+  const ico = document.getElementById(`slot-icon-${id}`);
+  if (!el||!ico) return;
+  const cls = slotClass(id);
+  // remove all state classes then add new
+  el.classList.remove('slot-empty','slot-occupied','slot-best');
+  el.classList.add(cls);
+  ico.innerHTML = slotIcon(id);
+}
+
+/* ── Car Animation ──────────────────────────────────── */
+function makeCar(type, color) {
+  if (type==='hatchback') return `<svg width="36" height="56" viewBox="0 0 40 60"><rect x="5" y="5" width="30" height="50" rx="8" fill="${color}"/><rect x="8" y="10" width="24" height="15" rx="2" fill="rgba(0,0,0,0.3)"/></svg>`;
+  if (type==='suv')       return `<svg width="46" height="76" viewBox="0 0 50 85"><rect x="5" y="5" width="40" height="75" rx="4" fill="${color}"/><rect x="8" y="12" width="34" height="25" rx="2" fill="rgba(0,0,0,0.4)"/></svg>`;
+  /* sedan */              return `<svg width="40" height="68" viewBox="0 0 45 75"><rect x="5" y="5" width="35" height="65" rx="6" fill="${color}"/><rect x="8" y="15" width="29" height="20" rx="2" fill="rgba(0,0,0,0.3)"/></svg>`;
+}
+
+function animateCar(type, color, targetId, onDone) {
+  const veh     = document.getElementById('animated-vehicle');
+  const map     = document.getElementById('map-container');
+  const slotEl  = document.getElementById(`slot-${targetId}`);
+  const mapRect = map.getBoundingClientRect();
+
+  veh.innerHTML   = makeCar(type, color);
+  veh.style.left  = '-80px';
+  veh.style.top   = '90px';          // centre of horizontal road band
+  veh.style.transform = 'rotate(90deg)';
+  veh.style.opacity   = '1';
+  veh.style.transition = 'none';
+
+  requestAnimationFrame(()=>{
+    // Phase 1: drive right along entry road
+    veh.style.transition = 'left 1.8s cubic-bezier(0.45,0,0.55,1)';
+    // figure out target X from slot element
+    let targetX = 200;
+    if (slotEl) {
+      const sr = slotEl.getBoundingClientRect();
+      targetX  = sr.left - mapRect.left + sr.width/2 - 20;
+      targetX  = Math.max(60, Math.min(mapRect.width - 60, targetX));
+    }
+    veh.style.left = `${targetX}px`;
+
+    setTimeout(()=>{
+      // Phase 2: turn downward and move into slot
+      veh.style.transition = 'transform 0.5s ease, top 1.2s cubic-bezier(0.45,0,0.55,1), left 0.4s ease';
+      veh.style.transform  = 'rotate(180deg)';
+
+      let targetY = 350;
+      if (slotEl) {
+        const sr = slotEl.getBoundingClientRect();
+        targetY  = sr.top - mapRect.top + sr.height/2 - 30;
+        targetY  = Math.max(160, Math.min(mapRect.height - 60, targetY));
+      }
+      setTimeout(()=>{
+        veh.style.top = `${targetY}px`;
+        setTimeout(()=>{
+          // Phase 3: shrink and vanish (parked)
+          veh.style.transition = 'transform 0.4s ease, opacity 0.4s ease';
+          veh.style.opacity    = '0';
+          veh.style.transform  = 'rotate(180deg) scale(0.6)';
+          setTimeout(()=>{
+            veh.style.transition = 'none';
+            veh.style.transform  = '';
+            veh.style.left       = '-80px';
+            veh.style.opacity    = '0';
+            onDone();
+          }, 450);
+        }, 1300);
+      }, 300);
+    }, 1900);
+  });
+}
+
+/* ── Park Button ────────────────────────────────────── */
+document.getElementById('btn-park').addEventListener('click', ()=>{
+  if (S.isAnimating || S.bestId === null) return;
+  parkVehicle(S.bestId);
+});
+
+async function parkVehicle(slotId) {
+  S.isAnimating = true;
+  const btn = document.getElementById('btn-park');
+  btn.disabled = true;
+  document.getElementById('btn-park-label').textContent = 'Parking…';
+  addActivity(`Vehicle [${S.vehicle?.toUpperCase()}] detected at entry gate.`, 'primary-container', 'near_me');
+
+  animateCar(S.vehicle, S.vehicleColor, slotId, async ()=>{
+    // Mark occupied
+    S.occupiedIds.add(slotId);
+    if (S.slotMap[slotId]) S.slotMap[slotId].status = 'occupied';
+    if (S.pairEndId !== null) {
+      S.occupiedIds.add(S.pairEndId);
+      if (S.slotMap[S.pairEndId]) S.slotMap[S.pairEndId].status = 'occupied';
+    }
+    const oldBest = S.bestId;
+    S.bestId    = null;
+    S.pairEndId = null;
+
+    refreshSlot(oldBest);
+    if (S.pairEndId) refreshSlot(S.pairEndId);
+
+    // Flash success on slot
+    const slotEl = document.getElementById(`slot-${oldBest}`);
+    if (slotEl) { slotEl.classList.add('success-pulse'); setTimeout(()=>slotEl.classList.remove('success-pulse'),3000); }
+
+    const avail = S.slots.filter(s=>s.status==='empty'&&!S.occupiedIds.has(s.id)).length;
+    const occ   = S.total - avail;
+    updateStats(avail, occ, S.total, null);
+    addActivity(`Parking successful. Slot #${String(oldBest+1).padStart(4,'0')} — SECURED.`, 'secondary-container', 'check_circle');
+
+    S.isAnimating = false;
+
+    // Find next best slot
+    await loadBestSlot(S.vehicle, false);
+  });
+}
+
+async function loadBestSlot(vehicleType, initialLoad) {
+  let data;
+  const online = await checkApi();
+  try {
+    if (online) {
+      data = await fetchBestSlot(vehicleType);
+      if (data.error) throw new Error(data.error);
+    } else {
+      data = buildDemoSlots(vehicleType);
+    }
+  } catch(e) {
+    addActivity(`API error: ${e.message}. Demo mode.`, 'tertiary-container', 'warning');
+    data = buildDemoSlots(vehicleType);
+  }
+
+  S.slots     = data.slots || S.slots;
+  // apply frontend-tracked occupied
+  S.slots.forEach(s=>{ if(S.occupiedIds.has(s.id)) s.status='occupied'; });
+  S.slotMap   = {};
+  S.slots.forEach(s=>{ S.slotMap[s.id]=s; });
+  S.bestId    = data.best_slot_id ?? null;
+  S.pairEndId = data.best_pair_end ?? null;
+
+  buildGrid();
+
+  const avail = S.slots.filter(s=>s.status==='empty').length;
+  updateStats(avail, S.total - avail, S.total, S.bestId);
+
+  const btn  = document.getElementById('btn-park');
+  const veh  = S.vehicle ? S.vehicle.charAt(0).toUpperCase() + S.vehicle.slice(1) : '';
+  if (S.bestId !== null) {
+    btn.disabled = false;
+    document.getElementById('btn-park-label').textContent = `Park ${veh} · #${String(S.bestId+1).padStart(4,'0')}`;
+    if (!initialLoad) addActivity(`Next best slot: #${String(S.bestId+1).padStart(4,'0')}`, 'primary-container', 'gps_fixed');
+  } else {
+    btn.disabled = true;
+    document.getElementById('btn-park-label').textContent = 'Lot Full';
+    addActivity('No suitable slot found for this vehicle type.', 'tertiary-container', 'block');
+  }
+}
+
+/* ── Vehicle Selection ──────────────────────────────── */
+async function selectVehicle(type, icon, color) {
+  S.vehicle      = type;
+  S.vehicleIcon  = icon;
+  S.vehicleColor = color;
+
+  // Show loader
+  const loader = document.getElementById('welcome-loader');
+  loader.classList.remove('opacity-0');
+  document.getElementById('loader-msg').textContent = 'Scanning parking lot via ML model…';
+
+  // Disable cards
+  document.querySelectorAll('.vehicle-card').forEach(c=>c.disabled=true);
+
+  // Set dashboard vehicle icon
+  const iconEl = document.getElementById('selected-vehicle-icon');
+  iconEl.textContent = icon;
+  iconEl.style.color = color;
+
+  // Load data
+  await loadBestSlot(type, true);
+  addActivity(`Vehicle type selected: ${type.toUpperCase()}. Slot assigned.`, 'primary-container', 'local_parking');
+
+  // Transition to dashboard
+  const welcome   = document.getElementById('welcome-view');
+  const dashboard = document.getElementById('dashboard-view');
+  welcome.classList.add('opacity-0','scale-95');
+  setTimeout(()=>{
+    welcome.classList.add('hidden');
+    dashboard.classList.remove('opacity-0','pointer-events-none');
+    dashboard.classList.add('opacity-100');
+  }, 500);
+}
+
+/* ── Boot ───────────────────────────────────────────── */
+(async ()=>{
+  const online = await checkApi();
+  document.getElementById('welcome-subtitle').textContent =
+    online ? 'Backend connected — Select your vehicle' : 'Demo mode (start app.py for AI) — Select vehicle';
+})();
+</script>
+</body>
+</html>

@@ -6,14 +6,14 @@ import numpy as np
 from tensorflow.keras.models import load_model
 
 # ── Load slot coordinates ──────────────────────────────────────────────────────
-with open("slots.pkl", "rb") as f:
+with open(r"C:\Parking Slot\Parking_Slot_Project\slots.pkl", "rb") as f:
     parking_slots = pickle.load(f)
 
 # ── Load model ─────────────────────────────────────────────────────────────────
-model = load_model("parking_model.h5")
+model = load_model(r"C:\Parking Slot\Parking_Slot_Project\parking_model.h5")
 
 # ── Load reference frame ───────────────────────────────────────────────────────
-frame = cv2.imread(r"C:\Users\DELL\OneDrive\Documents\java final prep\Parking_Slot_Project\Reference.jpg")
+frame = cv2.imread(r"C:\Parking Slot\Parking_Slot_Project\Reference.jpg")
 
 if frame is None:
     print("ERROR: Image not found. Check your path.")
